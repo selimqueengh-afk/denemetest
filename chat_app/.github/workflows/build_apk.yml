@@ -1,0 +1,111 @@
+name: 🚀 Android APK Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: 📱 Build Android APK
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: ☕ Setup Java 11
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+        
+    - name: 🐦 Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.32.8'
+        channel: 'stable'
+        cache: true
+        
+    - name: 📦 Get Flutter dependencies
+      run: flutter pub get
+      
+    - name: 🧹 Clean project
+      run: flutter clean
+      
+    - name: 🔧 Analyze code
+      run: flutter analyze
+      
+    - name: 🏗️ Build APK (Release)
+      run: |
+        flutter build apk --release \
+          --target-platform android-arm,android-arm64,android-x64 \
+          --split-per-abi
+          
+    - name: 🏗️ Build APK (Universal)
+      run: |
+        flutter build apk --release \
+          --target-platform android-arm,android-arm64,android-x64
+          
+    - name: 📱 Rename APK files
+      run: |
+        mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/sohbet-uygulamasi-universal.apk
+        
+    - name: 📤 Upload Universal APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: 📱 Sohbet Uygulaması (Universal APK)
+        path: build/app/outputs/flutter-apk/sohbet-uygulamasi-universal.apk
+        retention-days: 30
+        
+    - name: 📤 Upload Split APKs
+      uses: actions/upload-artifact@v4
+      with:
+        name: 📱 Sohbet Uygulaması (Split APKs)
+        path: build/app/outputs/flutter-apk/app-*-release.apk
+        retention-days: 30
+        
+    - name: 📊 APK Info
+      run: |
+        echo "📱 APK Build Completed!"
+        echo "📁 Universal APK: build/app/outputs/flutter-apk/sohbet-uygulamasi-universal.apk"
+        echo "📦 APK Size:"
+        ls -lh build/app/outputs/flutter-apk/*.apk
+        
+    - name: 🎉 Create Release (on tag)
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          build/app/outputs/flutter-apk/sohbet-uygulamasi-universal.apk
+          build/app/outputs/flutter-apk/app-*-release.apk
+        name: Sohbet Uygulaması ${{ github.ref_name }}
+        body: |
+          🎉 **Sohbet Uygulaması Yeni Sürüm!**
+          
+          📱 **Android APK Dosyaları:**
+          - `sohbet-uygulamasi-universal.apk` - Tüm cihazlar için (Önerilen)
+          - Split APK'lar - Belirli mimariler için
+          
+          📋 **Özellikler:**
+          - ✅ Çoklu sohbet odaları
+          - ✅ Gerçek zamanlı mesajlaşma
+          - ✅ Kullanıcı profil yönetimi  
+          - ✅ Yerel veri saklama
+          - ✅ Modern Material Design UI
+          
+          📲 **Kurulum:**
+          1. Universal APK'yı indirin
+          2. Android cihazınızda "Bilinmeyen kaynaklar"ı etkinleştirin
+          3. APK'yı yükleyin
+          4. Uygulamayı açın ve kullanmaya başlayın!
+          
+          ⚠️ **Minimum Gereksinimler:**
+          - Android 5.0+ (API 21)
+          - 50MB boş alan
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
